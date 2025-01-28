@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Database</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Movie Database</h1>
+        <input type="text" id="search" placeholder="Search for movies..." />
+        <div id="results"></div>
+        <div id="video-container" style="display: none;">
+            <!-- Updated to use YouTube embed iframe -->
+            <iframe 
+                id="video-player" 
+                width="640" 
+                height="360" 
+                frameborder="0" 
+                allowfullscreen>
+            </iframe>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
