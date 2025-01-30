@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Database - Search</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Movie Database</h1>
+
+        <!-- Search bar for movies -->
+        <input type="text" id="search" placeholder="Search for movies..." />
+
+        <!-- Movie details container -->
+        <div id="movieDetails" style="display: none; margin-bottom: 20px;">
+            <h2 id="movieTitle"></h2>
+            <p id="moviePlot"></p>
+            <p><strong>Year:</strong> <span id="movieYear"></span></p>
+            <p><strong>Genres:</strong> <span id="movieGenres"></span></p>
+            <p><strong>Rating:</strong> <span id="movieRating"></span></p>
+            <button id="playTrailerButton">Watch Trailer</button>
+        </div>
+
+        <!-- Video player modal -->
+        <div id="trailerModal" style="display: none;">
+            <div class="modal-content">
+                <span id="closeTrailerButton" style="cursor:pointer;">&times;</span>
+                <iframe 
+                    id="trailerIframe" 
+                    width="640" 
+                    height="360" 
+                    frameborder="0" 
+                    allowfullscreen
+                    title="Movie Trailer Player">
+                </iframe>
+            </div>
+        </div>
+
+        <!-- Results container for displaying search results -->
+        <div id="results"></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

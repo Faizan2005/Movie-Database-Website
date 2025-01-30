@@ -11,6 +11,7 @@ import (
 	"github.com/Faizan2005/Movie-Database/utils"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -73,22 +74,15 @@ func (s *APIServer) Run() {
 
 	router := mux.NewRouter()
 
-	router.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// CORS headers
-			w.Header().Set("Access-Control-Allow-Origin", "*") // Allow all origins for development; replace with specific origin in production
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
-
-			// Preflight request handling
-			if r.Method == http.MethodOptions {
-				w.WriteHeader(http.StatusOK)
-				return
-			}
-
-			next.ServeHTTP(w, r)
-		})
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{"http://0.0.0.0:8001"}, // Allow your frontend origin
+		AllowCredentials: true,
+		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},        // Allow specific methods
+		AllowedHeaders:   []string{"Content-Type", "Authorization"}, // Allow specific headers
 	})
+
+	// Use the CORS handler
+	handler := c.Handler(router)
 
 	router.HandleFunc("/user/signup", makeHTTPHandlerFunc(s.handleUserSignup)).Methods("POST")
 	router.HandleFunc("/user/login", makeHTTPHandlerFunc(s.handleUserLogin)).Methods("POST")
@@ -107,7 +101,7 @@ func (s *APIServer) Run() {
 
 	log.Println("Starting server on port", s.listenAddr)
 
-	http.ListenAndServe(s.listenAddr, router)
+	http.ListenAndServe(s.listenAddr, handler)
 }
 
 func (s *APIServer) handleMovie(w http.ResponseWriter, r *http.Request) error {
