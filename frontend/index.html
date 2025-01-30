@@ -9,20 +9,26 @@
 <body>
     <div class="container">
         <h1>Movie Database</h1>
+        <!-- Search bar for movies -->
         <input type="text" id="search" placeholder="Search for movies..." />
+
+        <!-- Results container for displaying search results -->
         <div id="results"></div>
+
+        <!-- Video player container, initially hidden -->
         <div id="video-container" style="display: none;">
-            <!-- Updated to use YouTube embed iframe -->
             <iframe 
                 id="video-player" 
                 width="640" 
                 height="360" 
                 frameborder="0" 
-                allowfullscreen>
+                allowfullscreen
+                title="Movie Trailer Player">
             </iframe>
         </div>
     </div>
 
+    <!-- Link to external JavaScript file -->
     <script src="script.js"></script>
 </body>
 </html>

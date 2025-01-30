@@ -26,3 +26,11 @@ type Movie struct {
 	Tomatoes         map[string]interface{} `bson:"tomatoes,omitempty" json:"tomatoes,omitempty"`
 	NumMflixComments int                    `bson:"num_mflix_comments,omitempty" json:"num_mflix_comments,omitempty"`
 }
+
+type User struct {
+	FirstName string `json:"firstname" bson:"firstname"`
+	LastName  string `json:"lastname" bson:"lastname"`
+	Email     string `json:"email" bson:"email"`
+	Password  string `json:"password" bson:"password"`
+	IsAdmin   bool   `json:"isAdmin" bson:"isAdmin"`
+}

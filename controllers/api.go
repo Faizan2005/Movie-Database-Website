@@ -1,16 +1,20 @@
 package controllers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/Faizan2005/Movie-Database/utils"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"golang.org/x/crypto/bcrypt"
 )
 
 //type APIFunc func(w http.ResponseWriter, r *http.Request) error
@@ -46,17 +50,21 @@ type APIServer struct {
 	listenAddr string
 	client     *mongo.Client
 	movies     *mongo.Collection
+	user       *mongo.Collection
 	// embeddedmovies *mongo.Collection
 }
 
 func NewAPIServer(listenAddr string, client *mongo.Client) *APIServer {
 
-	db := client.Database("sample_mflix")
+	db1 := client.Database("sample_mflix")
+
+	db2 := client.Database("credDB")
 
 	return &APIServer{
 		listenAddr: listenAddr,
 		client:     client,
-		movies:     db.Collection("movies"),
+		movies:     db1.Collection("movies"),
+		user:       db2.Collection("user"),
 		//	embeddedmovies: db.Collection("embedded_movies"),
 	}
 }
@@ -65,27 +73,32 @@ func (s *APIServer) Run() {
 
 	router := mux.NewRouter()
 
-	// CORS middleware
-	router.Use(mux.CORSMethodMiddleware(router))
 	router.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Access-Control-Allow-Origin", "*")
+			// CORS headers
+			w.Header().Set("Access-Control-Allow-Origin", "*") // Allow all origins for development; replace with specific origin in production
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
+
+			// Preflight request handling
 			if r.Method == http.MethodOptions {
 				w.WriteHeader(http.StatusOK)
 				return
 			}
+
 			next.ServeHTTP(w, r)
 		})
 	})
 
-	router.HandleFunc("/movie", makeHTTPHandlerFunc(s.handleMovie))
-	router.HandleFunc("/movie/{id}", makeHTTPHandlerFunc(s.handleMovieByID))
+	router.HandleFunc("/user/signup", makeHTTPHandlerFunc(s.handleUserSignup)).Methods("POST")
+	router.HandleFunc("/user/login", makeHTTPHandlerFunc(s.handleUserLogin)).Methods("POST")
 
-	router.HandleFunc("/search", makeHTTPHandlerFunc(s.handleSearchMovies)).Methods("GET")
+	router.Handle("/admin/movie", s.jwtMiddleware(s.adminMiddleware((makeHTTPHandlerFunc(s.handleMovie))))).Methods("GET", "POST")
+	router.Handle("/admin/movie/{id}", s.jwtMiddleware(s.adminMiddleware((makeHTTPHandlerFunc(s.handleMovieByID))))).Methods("GET", "PUT", "DELETE")
 
-	router.HandleFunc("/movie/{id}/playback", makeHTTPHandlerFunc(s.handleMoviePlayback)).Methods("GET")
+	router.Handle("/search", s.jwtMiddleware(makeHTTPHandlerFunc(s.handleSearchMovies))).Methods("GET")
+
+	router.Handle("/movie/{id}/playback", s.jwtMiddleware(makeHTTPHandlerFunc(s.handleMoviePlayback))).Methods("GET")
 
 	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -371,4 +384,160 @@ func (s *APIServer) handleMoviePlayback(w http.ResponseWriter, r *http.Request) 
 		"trailer_url": trailerURL,
 	}
 	return WriteJSON(w, http.StatusOK, response)
+}
+
+var SECRET_KEY = []byte("1234567890")
+
+func GenerateJWT(email string, isAdmin bool) (string, error) {
+
+	token := jwt.New(jwt.SigningMethodHS256)
+
+	// Create a token with claims
+	claims := token.Claims.(jwt.MapClaims)
+	claims["authorized"] = true
+	claims["email"] = email
+	claims["isAdmin"] = isAdmin
+	claims["exp"] = time.Now().Add(time.Hour * 24).Unix() // Set expiry time
+
+	tokenString, err := token.SignedString(SECRET_KEY)
+	if err != nil {
+		log.Println("Error in JWT token generation:", err)
+		return "", err
+	}
+	return tokenString, nil
+}
+
+func (s *APIServer) handleUserSignup(w http.ResponseWriter, r *http.Request) error {
+	var user utils.User
+
+	err := json.NewDecoder(r.Body).Decode(&user)
+	if err != nil {
+		log.Printf("Error decoding user signup request: %v", err)
+		return fmt.Errorf("error decoding: %v", err)
+	}
+
+	// Check if user already exists
+	var existingUser utils.User
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	err = s.user.FindOne(ctx, bson.M{"email": user.Email}).Decode(&existingUser)
+	if err == nil {
+		log.Printf("User  already exists with email: %s", user.Email)
+		return fmt.Errorf("user already exists")
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	if err != nil {
+		log.Printf("Error hashing password: %v", err)
+		return fmt.Errorf("error hashing password: %v", err)
+	}
+
+	user.Password = string(hashedPassword)
+
+	user.IsAdmin = false
+
+	result, err := s.user.InsertOne(ctx, user)
+	if err != nil {
+		log.Printf("Error while adding user credentials: %v", err)
+		return fmt.Errorf("error while adding user credentials: %v", err)
+	}
+
+	log.Printf("User  signed up successfully: %v", result.InsertedID)
+	return WriteJSON(w, http.StatusOK, result)
+}
+
+func (s *APIServer) handleUserLogin(w http.ResponseWriter, r *http.Request) error {
+	var user utils.User
+	var userDB utils.User
+
+	err := json.NewDecoder(r.Body).Decode(&user)
+	if err != nil {
+		log.Printf("Error decoding user login request: %v", err)
+		return fmt.Errorf("error decoding: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	err = s.user.FindOne(ctx, bson.M{"email": user.Email}).Decode(&userDB)
+	if err != nil {
+		log.Printf("User  not found: %v", err)
+		return fmt.Errorf("user not found")
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(userDB.Password), []byte(user.Password))
+	if err != nil {
+		log.Printf("Password mismatch for user: %s", user.Email)
+		return fmt.Errorf("invalid password")
+	}
+
+	jwtToken, err := GenerateJWT(userDB.Email, userDB.IsAdmin)
+	if err != nil {
+		log.Printf("Error generating JWT token: %v", err)
+		return fmt.Errorf("error generating token: %v", err)
+	}
+
+	log.Printf("User  logged in successfully: %s", user.Email)
+	return WriteJSON(w, http.StatusOK, map[string]string{"token": jwtToken})
+}
+
+func (s *APIServer) jwtMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		tokenString := r.Header.Get("Authorization")
+		if tokenString == "" {
+			http.Error(w, "authorization header is missing", http.StatusUnauthorized)
+			return
+		}
+
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			}
+
+			return SECRET_KEY, nil
+		})
+
+		if err != nil || !token.Valid {
+			http.Error(w, "invalid token", http.StatusUnauthorized)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (s *APIServer) adminMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		tokenString := r.Header.Get("Authorization")
+		if tokenString == "" {
+			http.Error(w, "authorization header is missing", http.StatusUnauthorized)
+			return
+		}
+
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			}
+
+			return SECRET_KEY, nil
+		})
+
+		if err != nil || !token.Valid {
+			http.Error(w, "invalid token", http.StatusUnauthorized)
+			return
+		}
+
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok || !claims["isAdmin"].(bool) {
+			http.Error(w, "Access denied: admin only", http.StatusForbidden)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }

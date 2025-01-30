@@ -1,16 +1,16 @@
+/* styles.css */
 body {
     font-family: Arial, sans-serif;
-    background-color: #f4f4f4;
     margin: 0;
-    padding: 20px;
+    padding: 0;
+    background-color: #f4f4f4;
 }
 
 .container {
     max-width: 800px;
-    margin: auto;
-    background: white;
+    margin: 50px auto;
     padding: 20px;
-    border-radius: 5px;
+    background-color: #fff;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }
 
@@ -21,6 +21,7 @@ h1 {
 #search {
     width: 100%;
     padding: 10px;
+    font-size: 16px;
     margin-bottom: 20px;
 }
 
@@ -30,11 +31,15 @@ h1 {
 
 .movie-item {
     padding: 10px;
-    border: 1px solid #ddd;
-    margin-bottom: 10px;
+    border-bottom: 1px solid #ddd;
     cursor: pointer;
 }
 
 .movie-item:hover {
-    background-color: #f0f0f0;
+    background-color: #f9f9f9;
+}
+
+#video-container {
+    margin-top: 20px;
+    text-align: center;
 }
