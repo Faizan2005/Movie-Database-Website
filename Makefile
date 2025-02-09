@@ -25,7 +25,7 @@ run: build
 .PHONY: start
 start: build
 	@echo "Starting $(APP_NAME)..."
-	@./$(BUILD_DIR)/$(APP_NAME)
+	PORT=8000 ./$(BUILD_DIR)/$(APP_NAME)
 
 # Run tests
 .PHONY: test
