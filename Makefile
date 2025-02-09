@@ -15,10 +15,16 @@ build:
 	@go build -o $(BUILD_DIR)/$(APP_NAME) ./main.go
 	@echo "Build complete! Executable is at $(BUILD_DIR)/$(APP_NAME)"
 
-# Run the application
+# Run the application (used locally)
 .PHONY: run
 run: build
 	@echo "Running $(APP_NAME)..."
+	@./$(BUILD_DIR)/$(APP_NAME)
+
+# Run the application (used in Render)
+.PHONY: start
+start: build
+	@echo "Starting $(APP_NAME)..."
 	@./$(BUILD_DIR)/$(APP_NAME)
 
 # Run tests
