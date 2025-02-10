@@ -1,8 +1,6 @@
 package main
 
 import (
-	"os"
-
 	"github.com/Faizan2005/Movie-Database/config"
 	"github.com/Faizan2005/Movie-Database/controllers"
 
@@ -22,11 +20,6 @@ func main() {
 
 	utils.Ping(client, ctx)
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8000"
-	}
-
-	server := controllers.NewAPIServer(":"+port, client)
+	server := controllers.NewAPIServer(":8000", client)
 	server.Run()
 }

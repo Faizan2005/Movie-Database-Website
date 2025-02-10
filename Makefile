@@ -21,12 +21,6 @@ run: build
 	@echo "Running $(APP_NAME)..."
 	@./$(BUILD_DIR)/$(APP_NAME)
 
-# Run the application (used in Render)
-.PHONY: start
-start: build
-	@echo "Starting $(APP_NAME)..."
-	PORT=8000 ./$(BUILD_DIR)/$(APP_NAME)
-
 # Run tests
 .PHONY: test
 test:
